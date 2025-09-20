@@ -1,2 +1,125 @@
-# Chatandc
-Just chill
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat & Trivia</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f8faff; margin: 0; padding: 0; }
+    header { background: #4a90e2; color: white; padding: 15px; text-align: center; font-size: 20px; }
+    .tabs { display: flex; background: #f1f4f9; }
+    .tabs button { flex: 1; padding: 12px; border: none; background: #f1f4f9; cursor: pointer; font-size: 16px; transition: 0.3s; }
+    .tabs button.active { background: #4a90e2; color: white; }
+    .tab-content { padding: 15px; }
+    #chat-box { height: 250px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: white; margin-bottom: 10px; }
+    .message { margin: 5px 0; padding: 8px; border-radius: 8px; background: #e6f0ff; animation: fadeIn 0.3s ease; }
+    #trivia-box { margin-top: 20px; }
+    .question { font-weight: bold; margin-bottom: 10px; }
+    .options button { display: block; margin: 5px 0; padding: 10px; border: none; border-radius: 6px; background: #e0e7ff; cursor: pointer; transition: 0.2s; width: 100%; }
+    .options button:hover { background: #c7d2fe; transform: scale(1.03); }
+    @keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
+  </style>
+</head>
+<body>
+  <header>Chat & Trivia</header>
+  <div class="tabs">
+    <button class="active" onclick="openTab('chat')">Chat</button>
+    <button onclick="openTab('trivia')">Trivia</button>
+  </div>
+
+  <div id="chat" class="tab-content">
+    <div id="chat-box"></div>
+    <input type="text" id="username" placeholder="Your name" style="width:30%;padding:8px;">
+    <input type="text" id="message" placeholder="Type a message..." style="width:50%;padding:8px;">
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+  <div id="trivia" class="tab-content" style="display:none;">
+    <div id="trivia-box">
+      <div class="question" id="question"></div>
+      <div class="options" id="options"></div>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js"></script>
+  <script>
+    // ⚡ Replace with your Firebase config
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+      projectId: "YOUR_PROJECT",
+      storageBucket: "YOUR_PROJECT.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Chat functions
+    const chatBox = document.getElementById("chat-box");
+    function sendMessage() {
+      const user = document.getElementById("username").value || "Anonymous";
+      const msg = document.getElementById("message").value;
+      if (msg.trim() === "") return;
+      firebase.database().ref("messages").push({ user, msg });
+      document.getElementById("message").value = "";
+    }
+
+    firebase.database().ref("messages").on("child_added", (snapshot) => {
+      const data = snapshot.val();
+      const div = document.createElement("div");
+      div.className = "message";
+      div.textContent = `${data.user}: ${data.msg}`;
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    });
+
+    // Trivia questions
+    const trivia = [
+      { q: "What is 5 + 7?", a: ["10", "12", "13"], correct: 1 },
+      { q: "Capital of France?", a: ["London", "Berlin", "Paris"], correct: 2 },
+      { q: "Fastest land animal?", a: ["Cheetah", "Lion", "Horse"], correct: 0 }
+    ];
+    let currentQ = 0;
+
+    function loadQuestion() {
+      const q = trivia[currentQ];
+      document.getElementById("question").textContent = q.q;
+      const optionsDiv = document.getElementById("options");
+      optionsDiv.innerHTML = "";
+      q.a.forEach((opt, i) => {
+        const btn = document.createElement("button");
+        btn.textContent = opt;
+        btn.onclick = () => checkAnswer(i);
+        optionsDiv.appendChild(btn);
+      });
+    }
+
+    function checkAnswer(i) {
+      const q = trivia[currentQ];
+      if (i === q.correct) {
+        alert("✅ Correct!");
+      } else {
+        alert("❌ Wrong!");
+      }
+      currentQ = (currentQ + 1) % trivia.length;
+      loadQuestion();
+    }
+
+    loadQuestion();
+
+    // Tabs
+    function openTab(tab) {
+      document.getElementById("chat").style.display = tab === "chat" ? "block" : "none";
+      document.getElementById("trivia").style.display = tab === "trivia" ? "block" : "none";
+      document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
+      document.querySelector(`.tabs button[onclick="openTab('${tab}')"]`).classList.add("active");
+    }
+  </script>
+</body>
+</html>
+
