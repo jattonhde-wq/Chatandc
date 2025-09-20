@@ -1,125 +1,153 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chat & Trivia</title>
-  <style>
-    body { font-family: Arial, sans-serif; background: #f8faff; margin: 0; padding: 0; }
-    header { background: #4a90e2; color: white; padding: 15px; text-align: center; font-size: 20px; }
-    .tabs { display: flex; background: #f1f4f9; }
-    .tabs button { flex: 1; padding: 12px; border: none; background: #f1f4f9; cursor: pointer; font-size: 16px; transition: 0.3s; }
-    .tabs button.active { background: #4a90e2; color: white; }
-    .tab-content { padding: 15px; }
-    #chat-box { height: 250px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: white; margin-bottom: 10px; }
-    .message { margin: 5px 0; padding: 8px; border-radius: 8px; background: #e6f0ff; animation: fadeIn 0.3s ease; }
-    #trivia-box { margin-top: 20px; }
-    .question { font-weight: bold; margin-bottom: 10px; }
-    .options button { display: block; margin: 5px 0; padding: 10px; border: none; border-radius: 6px; background: #e0e7ff; cursor: pointer; transition: 0.2s; width: 100%; }
-    .options button:hover { background: #c7d2fe; transform: scale(1.03); }
-    @keyframes fadeIn { from {opacity: 0;} to {opacity: 1;} }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Real-Time Chat Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  body {
+    margin:0; padding:0;
+    font-family: 'Roboto', sans-serif;
+    background:#f0f4ff;
+    display:flex; height:100vh;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: 220px;
+    background:#4f46e5;
+    color:white;
+    display:flex; flex-direction:column;
+    padding:20px;
+  }
+  .sidebar h2 { margin-bottom:20px; font-size:20px; }
+  .user-list { flex:1; overflow-y:auto; }
+  .user { padding:10px; border-radius:8px; margin-bottom:5px; background:#6366f1; transition:0.2s; }
+  .user:hover { background:#818cf8; }
+
+  /* Main chat */
+  .chat-container {
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    padding:20px;
+  }
+  .chat-box {
+    flex:1;
+    background:white;
+    border-radius:15px;
+    padding:15px;
+    overflow-y:auto;
+    box-shadow:0 2px 10px rgba(0,0,0,0.05);
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .message {
+    max-width:70%;
+    padding:10px 14px;
+    border-radius:15px;
+    animation: fadeIn 0.3s ease;
+    position:relative;
+  }
+  .message.user { background:#dbeafe; align-self:flex-end; }
+  .message.other { background:#eef2ff; align-self:flex-start; }
+  .timestamp {
+    font-size:10px;
+    color:#555;
+    margin-top:4px;
+  }
+
+  /* Input box */
+  .input-area { display:flex; gap:10px; margin-top:15px; flex-wrap:wrap; }
+  .input-area input { flex:1; padding:12px; border-radius:10px; border:1px solid #ccc; }
+  .input-area button { padding:12px 20px; border:none; border-radius:10px; background:#4f46e5; color:white; cursor:pointer; transition:0.2s; }
+  .input-area button:hover { background:#3730a3; }
+
+  @keyframes fadeIn { from {opacity:0;} to {opacity:1;} }
+
+  @media(max-width:768px){
+    body{ flex-direction:column; }
+    .sidebar{ width:100%; flex-direction:row; overflow-x:auto; padding:10px; }
+    .chat-container{ flex:1; }
+  }
+</style>
 </head>
 <body>
-  <header>Chat & Trivia</header>
-  <div class="tabs">
-    <button class="active" onclick="openTab('chat')">Chat</button>
-    <button onclick="openTab('trivia')">Trivia</button>
-  </div>
 
-  <div id="chat" class="tab-content">
-    <div id="chat-box"></div>
-    <input type="text" id="username" placeholder="Your name" style="width:30%;padding:8px;">
-    <input type="text" id="message" placeholder="Type a message..." style="width:50%;padding:8px;">
+<div class="sidebar">
+  <h2>Active Users</h2>
+  <div class="user-list" id="user-list"></div>
+</div>
+
+<div class="chat-container">
+  <div class="chat-box" id="chat-box"></div>
+  <div class="input-area">
+    <input type="text" id="username" placeholder="Your name">
+    <input type="text" id="message" placeholder="Type a message...">
     <button onclick="sendMessage()">Send</button>
   </div>
+</div>
 
-  <div id="trivia" class="tab-content" style="display:none;">
-    <div id="trivia-box">
-      <div class="question" id="question"></div>
-      <div class="options" id="options"></div>
-    </div>
-  </div>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js"></script>
+<script>
+  // 🔹 Replace with your Firebase config
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT.firebaseio.com",
+    projectId: "YOUR_PROJECT",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
 
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js"></script>
-  <script>
-    // ⚡ Replace with your Firebase config
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT.firebaseapp.com",
-      databaseURL: "https://YOUR_PROJECT.firebaseio.com",
-      projectId: "YOUR_PROJECT",
-      storageBucket: "YOUR_PROJECT.appspot.com",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
+  const app = firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
 
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+  const chatBox = document.getElementById("chat-box");
+  const userListDiv = document.getElementById("user-list");
 
-    // Chat functions
-    const chatBox = document.getElementById("chat-box");
-    function sendMessage() {
-      const user = document.getElementById("username").value || "Anonymous";
-      const msg = document.getElementById("message").value;
-      if (msg.trim() === "") return;
-      firebase.database().ref("messages").push({ user, msg });
-      document.getElementById("message").value = "";
-    }
+  // Send message
+  function sendMessage(){
+    const user = document.getElementById("username").value || "Anonymous";
+    const msg = document.getElementById("message").value;
+    if(msg.trim()==="") return;
 
-    firebase.database().ref("messages").on("child_added", (snapshot) => {
-      const data = snapshot.val();
+    const timestamp = new Date().toLocaleTimeString();
+    db.ref("messages").push({user,msg,timestamp});
+    document.getElementById("message").value="";
+  }
+
+  // Listen for new messages
+  db.ref("messages").on("child_added",(snapshot)=>{
+    const data = snapshot.val();
+    const div = document.createElement("div");
+    div.className = "message " + ((data.user === (document.getElementById("username").value || "Anonymous")) ? "user" : "other");
+    div.innerHTML = `<strong>${data.user}</strong>: ${data.msg} <div class="timestamp">${data.timestamp}</div>`;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    updateUserList(data.user);
+  });
+
+  // Keep track of active users
+  let users = new Set();
+  function updateUserList(user){
+    users.add(user);
+    userListDiv.innerHTML = "";
+    users.forEach(u=>{
       const div = document.createElement("div");
-      div.className = "message";
-      div.textContent = `${data.user}: ${data.msg}`;
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
+      div.className="user";
+      div.textContent=u;
+      userListDiv.appendChild(div);
     });
+  }
+</script>
 
-    // Trivia questions
-    const trivia = [
-      { q: "What is 5 + 7?", a: ["10", "12", "13"], correct: 1 },
-      { q: "Capital of France?", a: ["London", "Berlin", "Paris"], correct: 2 },
-      { q: "Fastest land animal?", a: ["Cheetah", "Lion", "Horse"], correct: 0 }
-    ];
-    let currentQ = 0;
-
-    function loadQuestion() {
-      const q = trivia[currentQ];
-      document.getElementById("question").textContent = q.q;
-      const optionsDiv = document.getElementById("options");
-      optionsDiv.innerHTML = "";
-      q.a.forEach((opt, i) => {
-        const btn = document.createElement("button");
-        btn.textContent = opt;
-        btn.onclick = () => checkAnswer(i);
-        optionsDiv.appendChild(btn);
-      });
-    }
-
-    function checkAnswer(i) {
-      const q = trivia[currentQ];
-      if (i === q.correct) {
-        alert("✅ Correct!");
-      } else {
-        alert("❌ Wrong!");
-      }
-      currentQ = (currentQ + 1) % trivia.length;
-      loadQuestion();
-    }
-
-    loadQuestion();
-
-    // Tabs
-    function openTab(tab) {
-      document.getElementById("chat").style.display = tab === "chat" ? "block" : "none";
-      document.getElementById("trivia").style.display = tab === "trivia" ? "block" : "none";
-      document.querySelectorAll(".tabs button").forEach(b => b.classList.remove("active"));
-      document.querySelector(`.tabs button[onclick="openTab('${tab}')"]`).classList.add("active");
-    }
-  </script>
 </body>
 </html>
+
 
